@@ -1,5 +1,5 @@
 // scripts/test-env.mjs
-// Smoke test: ověří, že env vars (Supabase + Anthropic) reálně fungují.
+// Smoke test: ověří, že env vars (Supabase, Anthropic, Stripe, Resend) reálně fungují.
 // Spuštění: pnpm test:env
 
 async function testSupabase() {
@@ -76,12 +76,83 @@ async function testAnthropic() {
   }
 }
 
+async function testStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+
+  if (!key) {
+    console.log("✗ Stripe: env var chybí (STRIPE_SECRET_KEY)");
+    return false;
+  }
+
+  // Pokud je tam placeholder z templatu, skip
+  if (key.startsWith("<") || key.length < 20) {
+    console.log("⊘ Stripe: skipped (placeholder hodnota v .env.local)");
+    return true;
+  }
+
+  try {
+    // GET /v1/balance je lightweight admin endpoint, vrací balance object (i pro test mode)
+    const res = await fetch("https://api.stripe.com/v1/balance", {
+      headers: { Authorization: `Bearer ${key}` },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const livemode = data.livemode ? "live" : "test";
+      console.log(`✓ Stripe: OK (${livemode} mode)`);
+      return true;
+    } else {
+      const text = await res.text();
+      console.log(`✗ Stripe: FAIL (HTTP ${res.status}) — ${text.slice(0, 200)}`);
+      return false;
+    }
+  } catch (e) {
+    console.log(`✗ Stripe: ERROR — ${e.message}`);
+    return false;
+  }
+}
+
+async function testResend() {
+  const key = process.env.RESEND_API_KEY;
+
+  if (!key) {
+    console.log("✗ Resend: env var chybí (RESEND_API_KEY)");
+    return false;
+  }
+
+  if (key.startsWith("<") || key.length < 20) {
+    console.log("⊘ Resend: skipped (placeholder hodnota v .env.local)");
+    return true;
+  }
+
+  try {
+    // GET /domains je read-only endpoint, ověří platnost klíče
+    const res = await fetch("https://api.resend.com/domains", {
+      headers: { Authorization: `Bearer ${key}` },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const count = Array.isArray(data?.data) ? data.data.length : 0;
+      console.log(`✓ Resend: OK (${count} domain${count === 1 ? "" : "s"} configured)`);
+      return true;
+    } else {
+      const text = await res.text();
+      console.log(`✗ Resend: FAIL (HTTP ${res.status}) — ${text.slice(0, 200)}`);
+      return false;
+    }
+  } catch (e) {
+    console.log(`✗ Resend: ERROR — ${e.message}`);
+    return false;
+  }
+}
+
 console.log("Testing env vars from .env.local...\n");
-const supabaseOk = await testSupabase();
-const anthropicOk = await testAnthropic();
+const results = await Promise.all([testSupabase(), testAnthropic(), testStripe(), testResend()]);
 console.log();
 
-if (supabaseOk && anthropicOk) {
+const allOk = results.every((r) => r);
+if (allOk) {
   console.log("✓ All checks passed.");
   process.exit(0);
 } else {
