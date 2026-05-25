@@ -1,0 +1,10 @@
+﻿{
+  "permissions": {
+    "deny": [
+      "Bash(rm -rf*)",
+      "Read(./.env.local)",
+      "Read(./.env)",
+      "Read(./.env.production)"
+    ]
+  }
+}
