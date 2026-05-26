@@ -4,7 +4,7 @@
 
 - `client.ts` — browser client (pro Client Components, používá `"use client"`)
 - `server.ts` — server client (pro Server Components, Server Actions, Route Handlers)
-- `middleware.ts` — middleware helper (volaný z `src/middleware.ts`)
+- `middleware.ts` — middleware helper (volaný z `src/proxy.ts` — Next.js 16.2 přejmenoval entrypoint, helper si zachoval název)
 
 ## Pravidla
 
